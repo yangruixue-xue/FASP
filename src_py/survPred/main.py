@@ -1,27 +1,27 @@
 
-import os
+import os 
 import sys
 sys.path.append(os.getcwd())
 import json
-import shutil
-from datetime import datetime
-import warnings
+import shutil #复制代码，备份日志目录
+from datetime import datetime #备份目录加时间戳
+import warnings #忽略警告
 import copy
-import argparse
+import argparse #接收命令行参数
 import csv
 
 import numpy as np
 import torch
 import torch.nn as nn
 
-from ccToolkits.MySummaryWriter import MySummaryWriter
-from ccToolkits import logger
-from ccToolkits import tinies
+from ccToolkits.MySummaryWriter import MySummaryWriter #日志记录器
+from ccToolkits import logger #项目日志系统
+from ccToolkits import tinies #工具函数
 
-import survPred.config as config
-from importlib import reload
+import survPred.config as config #全局配置文件 
+from importlib import reload 
 reload(config)
-from survPred.models.getModel import get_model
+from survPred.models.getModel import get_model #根据模型配置搭建模型
 from survPred.training import train, predict
 
 #
