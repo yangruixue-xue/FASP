@@ -3,21 +3,21 @@
 # (2) generate data splits for training, validation, testing
 
 
-import os
+import os #路径处理
 import sys
-sys.path.append(os.getcwd()) # cuz config module is in the working dir
+sys.path.append(os.getcwd()) # cuz config module is in the working dir，当前工作目录加入到python搜索目录
 import json
 
 import numpy as np
-import pandas as pd
+import pandas as pd #读取csv表格
 
-import survPred.config as config
+import survPred.config as config #读取survPred文件夹config.py脚本中的config
 
-root = os.path.dirname(os.getcwd())
+root = os.path.dirname(os.getcwd())  #获取工作目录，上一级为项目root
 
 ## file paths
 surv_dir = os.path.join(root, 'data_cleaned_nonImage', 'survival')
-cases_included_surv_f = os.path.join(surv_dir, 'cases_included_random_split_by_recur_death_surgeryYear.csv')
+cases_included_surv_f = os.path.join(surv_dir, 'cases_included_random_split_by_recur_death_surgeryYear.csv') #csv应包含病人id、组别（dev/test）、5折交叉验证的fold信息、20次随机重采样划分、多次重复交叉验证划分
 
 folds_n = config.folds_n # folds number for cross-validation
 test_prob = config.test_prob
@@ -28,26 +28,26 @@ test_prob = config.test_prob
 b_tag = 'b1to4'
 cases_included_surv_df_all = pd.read_csv(cases_included_surv_f)
 cases_included_surv_df = cases_included_surv_df_all # [cases_included_surv_df_all['batch']=='b1to2']
-pats_dev = cases_included_surv_df['pat_id'][cases_included_surv_df['split_group']=='dev'].values.tolist()
+pats_dev = cases_included_surv_df['pat_id'][cases_included_surv_df['split_group']=='dev'].values.tolist() #dev集，训练和验证；test集，独立测试集
 pats_test = cases_included_surv_df['pat_id'][cases_included_surv_df['split_group']=='test'].values.tolist()
 patIDs = pats_dev + pats_test
 
 patIDs.sort()
-print('total num:{}'.format(len(patIDs))) # 820
+print('total num:{}'.format(len(patIDs))) # 820，打印总病例数
 
 ##------- save data splits indices to .json ------##
 data_splits = dict()
 np.random.seed(99)
 np.random.shuffle(patIDs)
 # data_splits['test'] = patIDs[0:int(test_prob*len(patIDs))]
-data_splits['test'] = pats_test
+data_splits['test'] = pats_test #测试集根据csv表格指定的test病例
 print('test num:{}'.format(len(data_splits['test']))) # 178
 
 dev = dict()
 # devIDs = [i for i in patIDs if i not in data_splits['test']]
 devIDs = pats_dev
 dev['foldBFsplit'] = dict()
-dev['foldBFsplit']['train'] = devIDs
+dev['foldBFsplit']['train'] = devIDs  #训练集和测试集完全相同
 dev['foldBFsplit']['val'] = devIDs
 
 # split 'dev' data to one time CV folds
@@ -55,14 +55,14 @@ dev['foldBFsplit']['val'] = devIDs
 # np.random.shuffle(devIDs)
 for fold in range(folds_n):
     split_tag = 'fold{}'.format(fold)
-    dev[split_tag] = dict()
-    val_ids = cases_included_surv_df['pat_id'][cases_included_surv_df['dev_CV_folds']=='Fold{}'.format(fold+1)].values.tolist() # sorted([x for i,x in enumerate(devIDs) if i%folds_n != fold])
-    train_ids = sorted([x for i,x in enumerate(devIDs) if x not in val_ids])
+    dev[split_tag] = dict() #生成交叉验证划分
+    val_ids = cases_included_surv_df['pat_id'][cases_included_surv_df['dev_CV_folds']=='Fold{}'.format(fold+1)].values.tolist() # sorted([x for i,x in enumerate(devIDs) if i%folds_n != fold])，从csv列中dev_CV_folds找验证集
+    train_ids = sorted([x for i,x in enumerate(devIDs) if x not in val_ids]) #训练集是dev集中除val_ids以外的所有病例
     print('fold{}: train num, {}; val num, {}'.format(fold, len(train_ids), len(val_ids)))
     dev[split_tag]['val'] = val_ids
-    dev[split_tag]['train'] = train_ids
+    dev[split_tag]['train'] = train_ids  #生成json文件
 
-# 20 times random non-replaced resampling
+# 20 times random non-replaced resampling，生成20次随机非替换重采样划分
 for i in range(20):
     split_tag = 'Resample{}'.format(str(i+1).zfill(2))
     dev[split_tag] = dict()
@@ -71,10 +71,11 @@ for i in range(20):
     print('{}: train num, {}; val num, {}'.format(split_tag, len(train_ids), len(val_ids)))
     dev[split_tag]['val'] = val_ids
     dev[split_tag]['train'] = train_ids
+    #csv文件保存每个病人是train还是val，将列转换为json格式
 
-# multiple CV folds
-CV_times = 5# 4
-CV_k = 4#5
+# multiple CV folds，生成多次重复交叉验证
+CV_times = 5# 4，5次重复
+CV_k = 4#5，4折交叉
 for i in range(CV_times):
     for j in range(CV_k):
         split_tag = 'mCVsFold{}.Rep{}'.format(j+1,i+1)
